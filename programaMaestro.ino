@@ -77,6 +77,7 @@ void iniciarWiFi(){
         }
         else{ // Si no se conecto
             contadorWiFi = 0;
+            WiFi.begin(SSID,PASSWORD); // Reinenta conectarse
             // Serial.println("Fallo al conectarse al WiFi. Volviendo a intentar.");
         }
     }
