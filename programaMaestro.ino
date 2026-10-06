@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <ESPmDNS.h>
 /*
     Se utiliza la variable 'inicio' en cada funcion para simular un setup
     *agregar otros comentarios*
@@ -14,6 +15,7 @@ constexpr const char* SSID = "SSID";
 constexpr const char* PASSWORD = "PASSWORD";
 // tiempos
 constexpr uint16_t tiempoDeEsperaWiFi = 30000; // Tiempo que tarda en volver a intentarlo, maximo 65.535 por ser uint16_t, 
+constexpr uint16_t tiempoDeEsperaMDNS = 10000;
 //-----------------------------------------
 
 
@@ -33,6 +35,8 @@ void IRAM_ATTR onTimer() {
 void iniciarWiFi();
 //-----------------------------------------
 
+WiFiServer server(80);
+
 
 void setup(){
     // Cosas de la interrupcion ISR
@@ -47,6 +51,7 @@ void setup(){
     // Serial.begin(115000);
 
 }
+
 void loop(){
     if(banderaTimer){ // si ya paso 1ms
         banderaTimer = false;
@@ -55,33 +60,45 @@ void loop(){
 }
 
 void iniciarWiFi(){
-    // Simulacion de setup
-    //-------------------------------------
-    static bool inicio = true;
-    if(inicio){
-        WiFi.begin(SSID,PASSWORD);
-        // Serial.println("Comenzo la conexion a WiFi");
-        inicio = false;
-    }
-    //-------------------------------------
 
-    static uint16_t contadorWiFi;
-    static bool conexionAWiFi = false;
+    static uint16_t contador;
+    static uint8_t estado = 0;
     
     if(conexionAWiFi) return; // Si ya esta conectado salir a loop permanentemente
+    switch(estado){
+        case 0:
+            WiFi.begin(SSID,PASSWORD);
+            // Serial.println("Comenzo a conectarse a WiFi");
+            estado = 1;
+            break;
+        case 1:
+            if(contador >= tiempoDeEsperaWiFi){
+                estado = 2;
+            }
+            contador++;
+            break;
+        case 2:
+            if(WiFi.status() == WL_CONNECTED){
+                //Serial.println("Se conceto a WiFi ^^")
+                estado = 3;
+            }
+            else{
+                estado = 1;
+                //Serial.println("Fallo la conexion a WiFi volviendo a conectar")
+                contador = 0;
+            }
+            break;
+        case 3:
+            if(MDNS.begin("esp32-GA2D")){
+                //Serial.println("MDNS iniciado correctamente");
+                estado = 4;
+            }
+            else{
+            //Serial.println("fallo aliniciar MDNS");
+            //while(true) delay(1000);
+            }
+            break;
+        case 4:
+            server.begin;
 
-    if(contadorWiFi >= tiempoDeEsperaWiFi){ // Si ya paso tiempoDeEsperaWiFi
-        if(WiFi.status() == WL_CONNECTED){ // Si ya esta conectado
-            conexionAWiFi = true;
-            // Serial.println("Conectado con exito ^^");
-        }
-        else{ // Si no se conecto
-            contadorWiFi = 0;
-            WiFi.begin(SSID,PASSWORD); // Reinenta conectarse
-            // Serial.println("Fallo al conectarse al WiFi. Volviendo a intentar.");
-        }
     }
-    else{
-        contadorWiFi++;
-    }
-}
